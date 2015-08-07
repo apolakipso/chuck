@@ -1,2 +1,2 @@
-# chuck
+# ChucK
 Playing around with ChucK
