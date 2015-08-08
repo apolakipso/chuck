@@ -1,3 +1,6 @@
 [submodule "chugins"]
 	path = chugins
 	url = https://github.com/ccrma/chugins.git
+[submodule "lick"]
+	path = lick
+	url = https://github.com/heuermh/lick.git
