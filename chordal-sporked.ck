@@ -1,29 +1,31 @@
-// audio chain
-SawOsc o[4] => Gain og[4];
+// Master
+Gain master => 
+dac;
 
+// Chord
+SawOsc o[4] => Gain og[4];
 ADSR env => 
 ResonZ f => 
 Pan2 p => 
 Chorus c => 
-PRCRev r => 
-Gain master => 
-dac;
+PRCRev r =>
+master;
 
-FMVoices bass => ADSR bassEnv => ResonZ bassFilter => master;
+// Bass
+FMVoices bass =>
+ADSR bassEnv =>
+ResonZ bassFilter =>
+master;
 
-Gain drums => LPF drumFilter => Dyno compressor => master;
-SndBuf kick;
-SndBuf clap;
-SndBuf ch;
-SndBuf oh;
-SndBuf crash;
+// Drums
+Gain drums =>
+LPF drumFilter =>
+Dyno compressor =>
+master;
 
-loadSound(kick, "kick");
-loadSound(clap, "snare");
-loadSound(ch, "hihat-closed");
-loadSound(oh, "hihat-open");
-loadSound(crash, "crash");
 
+
+// Chord setup
 o[0] => og[0];
 o[1] => og[1];
 o[2] => og[2];
@@ -36,13 +38,29 @@ og[3] => env;
 2 => o[1].sync;
 2 => o[2].sync;
 2 => o[3].sync;
-
-// audio setup
 (10::ms, 70::ms, 0.0, 120::ms) => env.set;
 0.7 => master.gain;
 0 => og[0].gain;
 1 => og[1].gain;
+0.2 => c.modDepth;
+0.3 => c.mix;
+0.05 => r.mix;
 
+// Bass setup
+0.6 => bass.gain;
+
+// Drums setup
+SndBuf kick;
+SndBuf clap;
+SndBuf ch;
+SndBuf oh;
+SndBuf crash;
+loadSound(kick, "kick");
+loadSound(clap, "snare");
+loadSound(ch, "hihat-closed");
+loadSound(oh, "hihat-open");
+loadSound(crash, "crash");
+10000 => drumFilter.freq;
 0.9 => drums.gain;
 0.7 => kick.gain;
 0.5 => clap.gain;
@@ -51,29 +69,30 @@ og[3] => env;
 0.3 => crash.gain;
 compressor.limit();
 
-0.6 => bass.gain;
 
-// Chorus
-0.2 => c.modDepth;
-0.3 => c.mix;
-
-// Reverb
-0.05 => r.mix;
-
+// Timing setup
 0 => int beat;
-// start on the root:
-0 => int currentStep;
+124.0 => float bpm;
+172 => bpm;
+(60/bpm * 4 * 1000) / 16 => float stepDuration;
+0.55 => float swing;
+float d;
 
-float chord[];
 
+// Scale setup
 [1, 3, 5] @=> int triad[];
 [1, 3, 5, 7] @=> int seventh[];
 [triad, seventh] @=> int chordTypes[][];
-
 [0, 2, 4, 5, 7, 9, 11] @=> int major[];
 [0, 2, 3, 5, 7, 8, 10] @=> int minor[];
 
+minor @=> int scale[];
+float chord[];
 
+// start on the root
+0 => int currentStep;
+
+// Pattern setup
 [1,0,0,1,0,0,1,0,1,0,0,1,0,0,1,0] @=> int ptrChord[];
 [1,0,1,1,0,0,1,0,1,0,0,1,0,1,1,0] @=> int ptrBass[];
 [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0] @=> int ptrKick[];
@@ -82,18 +101,15 @@ float chord[];
 [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0] @=> int ptrOH[];
 [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] @=> int ptrCrash[];
 
-minor @=> int scale[];
-124.0 => float bpm;
-(60/bpm * 4 * 1000) / 16 => float stepDuration;
-0.55 => float swing;
-float d;
-
 if (bpm > 140) {
 	[1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0] @=> ptrKick;
 	[0,0,0,0,1,0,0,1,0,1,0,0,1,0,0,0] @=> ptrClap;
 	[0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0] @=> ptrOH;
 }
 
+fun void n(dur d) {
+	d => now;
+}
 
 fun void loadSound(SndBuf b, string s) {
 	b => drums;
@@ -103,7 +119,7 @@ fun void loadSound(SndBuf b, string s) {
 
 fun void playSound(SndBuf s) {
 	0 => s.pos;
-	s.samples()::samp => now;
+	n(s.samples()::samp);
 }
 
 fun int getScaleStep(int step, int scale[]) {
@@ -187,8 +203,8 @@ fun int playStep(int pattern[], int beat, int probability) {
 
 while (true) {
 	if (prob(20)) {
-		rnd(200, 9000) => drumFilter.freq;
-		rndf(0.4, 1.0) => drumFilter.Q;
+		rnd(500, 9000) => drumFilter.freq;
+		//rndf(0.4, 1.0) => drumFilter.Q;
 	}
 	if (ptrChord[beat % ptrChord.cap()] == 1) {
 		if (prob(70)) {
@@ -216,7 +232,7 @@ while (true) {
 	
 	// step delay with swing
 	((beat % 2 == 0) ? 0.5 + swing : 1.5 - swing) => d;
-	d * stepDuration::ms => now;
+	n(d * stepDuration::ms);
 	1 => env.keyOff;
 	1 => bass.noteOff;
 	1 => bassEnv.keyOff;
